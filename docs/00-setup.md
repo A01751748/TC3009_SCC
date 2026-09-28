@@ -59,6 +59,11 @@ para todos. Esa es media razón de que el curso funcione con 30 laptops distinta
 > correr `./run start` o `bash setup/bootstrap.sh` en tu computadora, los dos te van a decir
 > que ese no es su sitio, en vez de fallar con un error críptico.
 
+**Por ahora.** Al final del módulo vas a tener que hacer correr todo esto en tu propia
+máquina, y va a ser un ejercicio, no un paso del setup: no habrá un script que lo haga por ti.
+Para entonces vas a saber exactamente qué necesita el producto para funcionar — y averiguar
+cómo instalarlo en *tu* sistema es justo la prueba de que lo entendiste.
+
 ### Si usas Windows: Git Bash como terminal de VS Code
 
 **No es opcional.** VS Code en Windows abre PowerShell, y los comandos de este curso están
@@ -160,8 +165,31 @@ cd TU-REPO
 bash setup/bootstrap.sh
 ```
 
-El bootstrap instala Python, las dependencias, Ollama y el modelo. **La descarga del modelo
-es de ~1 GB**, así que hazlo antes de la clase, no durante.
+Una instancia recién creada **no trae nada**: ni Python, ni pip, ni Ollama. El bootstrap
+instala las cuatro capas y comprueba cada una antes de seguir:
+
+```
+  0 · espacio en disco        avisa si no caben los ~2.5 GB que vienen
+  1 · paquetes del sistema    python3, python3-venv, pip, git, curl, lsof
+  2 · entorno virtual         .venv/ dentro del proyecto
+  3 · dependencias            Flask, CORS, requests
+  4 · Ollama y el modelo      el servidor y ~1 GB de pesos
+```
+
+Termina con una comprobación de las cuatro, y si algo quedó a medias lo dice y puedes volver
+a correrlo: no reinstala lo que ya está.
+
+**La descarga del modelo es de ~1 GB**, así que hazlo antes de la clase, no durante.
+
+> **Por qué un entorno virtual y no `pip install` a secas.** Ubuntu 24.04 protege el Python
+> del sistema: un `pip install` fuera de un entorno se niega con
+> `externally-managed-environment`. No es un estorbo, es correcto — las dependencias de tu
+> proyecto no deben mezclarse con las del sistema operativo. Por eso todo vive en `.venv/`, y
+> por eso `./run` llama a `.venv/bin/python` directamente en vez de pedirte que actives nada.
+> Una activación olvidada es una fuente de confusión menos.
+>
+> **Si el disco se queda corto**, el volumen por defecto de una instancia nueva son 8 GB y
+> aquí caben justos. El paso 0 te avisa antes de empezar a bajar, no a la mitad.
 
 Luego:
 

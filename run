@@ -62,13 +62,16 @@ case "${1:-}" in
       # correr bootstrap.sh en su Mac es mandarlo a una pared. La instancia es
       # la unica Linux del curso.
       if [[ "$(uname -s)" != "Linux" ]]; then
-        mal "esto se corre en la INSTANCIA, no en tu computadora."
+        mal "esto se corre en la INSTANCIA. Aqui todavia no."
         echo
-        echo "        Tu maquina solo edita codigo: no necesita Python, ni Node,"
-        echo "        ni Ollama. Todo eso vive en la instancia."
+        echo "        Por ahora tu maquina edita y hace git; la instancia ejecuta."
         echo
         echo "        Aqui:           git add -A && git commit -m \"...\" && git push"
         echo "        En la instancia: git pull && ./run restart"
+        echo
+        echo "        Al final del modulo vas a tener que hacerlo correr aqui"
+        echo "        tambien. Ese es un ejercicio, no un paso del setup: ya"
+        echo "        tendras todo lo que hace falta para averiguar como."
       else
         mal "no encuentro el entorno en $PY"
         echo "        Corre:  bash setup/bootstrap.sh"
