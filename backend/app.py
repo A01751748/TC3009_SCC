@@ -39,6 +39,21 @@ CORS(app)
 # group: nadie de fuera debe poder preguntarle al modelo directamente saltandose
 # tu API. Tu backend es la unica puerta.
 OLLAMA = os.environ.get("OLLAMA_URL", "http://localhost:11434")
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  EL MODELO. Esta es la linea que cambias para usar otro.
+# ─────────────────────────────────────────────────────────────────────────────
+#
+#   1. bajalo:     ollama pull <modelo>
+#   2. cambialo:   aqui abajo
+#   3. reinicia:   ./run restart
+#
+# O sin tocar el codigo, para probar uno suelto:
+#
+#   OLLAMA_MODEL=llama3.2:3b ./run restart
+#
+# Cabe lo que quepa en 8 GB de RAM y sea razonable en 2 vCPU sin GPU. Mas
+# grande no es mejor si tarda un minuto en contestar.
 MODELO = os.environ.get("OLLAMA_MODEL", "qwen2.5:1.5b")
 
 # Una t2.large tiene 2 vCPU y NO tiene GPU. Medido en una: unos 6 tokens por

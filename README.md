@@ -31,6 +31,15 @@ Todo eso está en **[docs/00-setup.md](docs/00-setup.md)** — quince minutos, u
 | `setup/bootstrap.sh` | Deja la instancia lista: Python, Ollama y el modelo |
 | `run` | `start` · `stop` · `status` · `logs` · `salud` · `modelo` |
 
+**El modelo por defecto es `qwen2.5:1.5b`**, y se cambia en una línea de `backend/app.py`:
+
+```python
+MODELO = os.environ.get("OLLAMA_MODEL", "qwen2.5:1.5b")
+```
+
+Bájalo primero (`ollama pull <modelo>`) y reinicia. Para probar uno sin tocar código:
+`OLLAMA_MODEL=llama3.2:3b ./run restart`. La guía explica cuáles caben en una t2.large.
+
 ```
    Fase 1   un backend en Flask que habla con Ollama          ~60 min
    Fase 2a  un frontend en React que habla con el backend     ~45 min

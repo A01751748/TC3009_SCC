@@ -128,6 +128,62 @@ comparando tiempos de carga, no de generación — que es el error que yo comet�
 
 ---
 
+### Cambiar de modelo: una línea
+
+El modelo por defecto es **`qwen2.5:1.5b`**, y vive en una sola línea de
+[backend/app.py](../backend/app.py):
+
+```python
+MODELO = os.environ.get("OLLAMA_MODEL", "qwen2.5:1.5b")
+#                                        ^^^^^^^^^^^^
+#                                        esto es lo que cambias
+```
+
+Tres pasos, **en la instancia**:
+
+```bash
+ollama pull llama3.2:3b     # 1. bájalo
+# 2. cambia la línea en backend/app.py (desde tu computadora, y push)
+./run restart               # 3. reinicia
+./run salud                 # 4. comprueba que dice el nuevo
+```
+
+Y para probar uno suelto **sin tocar código**, porque la línea lee una variable de entorno:
+
+```bash
+OLLAMA_MODEL=llama3.2:3b ./run restart
+```
+
+Eso dura hasta el siguiente `restart` sin la variable. Útil para comparar dos en cinco
+minutos sin ensuciar tu repositorio.
+
+### Cuáles caben
+
+La regla no es «el más nuevo»: es **lo que quepa en 8 GB de RAM y sea razonable en 2 vCPU sin
+GPU**. Tamaños medidos:
+
+| modelo | tamaño | en una t2.large |
+|---|---:|---|
+| `qwen2.5:0.5b` | ~0.4 GB | muy rápido, calidad justa |
+| **`qwen2.5:1.5b`** | **1.0 GB** | **el que viene por defecto** |
+| `llama3.2:1b` | 1.3 GB | rápido, pero **inventa** en conversación |
+| `llama3.2:3b` | 2.0 GB | mejor calidad, más lento |
+| `phi3` (3.8B) | 2.2 GB | parecido al anterior |
+| `qwen2.5:7b` | 4.7 GB | cabe a duras penas, e irá muy lento |
+
+> **`llama3.1` no tiene versión pequeña.** Solo existe en 8B, 70B y 405B: la menor son 4.7 GB
+> y en 2 vCPU sin GPU es inusable. Si querías «subir» de `llama3.2` a `llama3.1`, ese salto no
+> va en la dirección que parece — el 3.2 es más nuevo para tamaños chicos, no más viejo.
+>
+> Compruébalo tú antes de bajar nada: en [ollama.com/library](https://ollama.com/library) cada
+> modelo lista sus tamaños.
+
+Después de cambiar, **vuelve a hacer las dos pruebas del cierre de esta fase**: que responda, y
+que recuerde el dato del turno anterior. Un modelo que pasa la primera y falla la segunda no
+sirve para un chat, por rápido que sea — y es exactamente lo que le pasa al `llama3.2:1b`.
+
+---
+
 ## Fase 1 — El backend (60 min)
 
 ### Antes de escribir nada
