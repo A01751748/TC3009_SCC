@@ -170,7 +170,7 @@ instala las cuatro capas y comprueba cada una antes de seguir:
 
 ```
   0 · espacio en disco        avisa si no caben los ~2.5 GB que vienen
-  1 · paquetes del sistema    python3, python3-venv, pip, git, curl, lsof
+  1 · paquetes del sistema    python3, python3-venv, git, curl, lsof
   2 · entorno virtual         .venv/ dentro del proyecto
   3 · dependencias            Flask, CORS, requests
   4 · Ollama y el modelo      el servidor y ~1 GB de pesos

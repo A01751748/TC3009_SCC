@@ -51,6 +51,18 @@ MODELO = os.environ.get("OLLAMA_MODEL", "qwen2.5:1.5b")
 MAX_TOKENS = int(os.environ.get("OLLAMA_MAX_TOKENS", "180"))
 TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT", "120"))
 
+# Ollama descarga el modelo de la RAM tras 5 minutos sin usarlo. Eso significa
+# que el primer usuario despues de una pausa paga la carga --un giga de disco
+# a memoria, en una maquina sin prisa-- y cree que el producto esta roto.
+#
+# Medido: la primera peticion tardo 5 segundos para 26 tokens; la generacion
+# pura era mucho mas rapida. Casi todo era la carga.
+#
+# 30m lo deja en RAM durante una clase entera. El costo es 1 GB de los 8 que
+# tiene la maquina, y es un intercambio que vale la pena: memoria a cambio de
+# que nadie espere.
+KEEP_ALIVE = os.environ.get("OLLAMA_KEEP_ALIVE", "30m")
+
 # Va delante de cada conversacion. Los modelos pequeños se enrollan y se
 # inventan cosas; esto los sujeta, y ademas mantiene las respuestas cortas,
 # que en una maquina lenta es media experiencia de usuario.

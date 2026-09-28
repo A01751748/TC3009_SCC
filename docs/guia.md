@@ -72,22 +72,59 @@ probándola, no leyendo la ficha técnica.
 
 ### Lo lento que va, medido
 
-En una t2.large real, `llama3.2:3b` da **5.8 tokens por segundo**. Eso significa:
+En una t2.large real, con este mismo backend:
 
 ```
-   una respuesta de 100 tokens   ~17 segundos
-   una respuesta de 400 tokens   ~69 segundos
+   26 tokens en 5 segundos   =   4.8 tokens/segundo de extremo a extremo
 ```
 
-`qwen2.5:1.5b` va aproximadamente al doble. Aun así, **mídelo en la tuya** — es una línea:
+«De extremo a extremo» importa, porque ese número **no es la velocidad del modelo**: incluye
+cargar el modelo del disco a la RAM, procesar tu pregunta, generar, y la ida y vuelta por
+Flask. Y la primera parte se come casi todo.
+
+### La carga en frío, que es medio problema de producto
+
+Ollama descarga el modelo de la memoria tras **cinco minutos** sin usarlo. La siguiente
+pregunta paga la recarga: un gigabyte de disco a RAM, en una máquina sin prisa.
+
+Compruébalo. Pregunta algo, mira lo que tarda, espera, y vuelve a preguntar:
 
 ```bash
-curl -s http://localhost:11434/api/generate \
-  -d '{"model":"qwen2.5:1.5b","prompt":"Explica que es una API en tres frases.","stream":false}' \
-  | python3 -c "import sys,json;d=json.load(sys.stdin);print(f\"{d['eval_count']/(d['eval_duration']/1e9):.1f} tok/s\")"
+curl -s http://localhost:11434/api/chat \
+  -d '{"model":"qwen2.5:1.5b","stream":false,
+       "messages":[{"role":"user","content":"hola"}]}' \
+  | python3 -c "
+import sys,json; d=json.load(sys.stdin)
+print(f\"carga {d.get('load_duration',0)/1e9:.2f}s · generar {d.get('eval_duration',0)/1e9:.2f}s\")"
 ```
 
-Ese número manda sobre dos decisiones que vas a tomar en la fase 1, y sobre toda la fase 2b.
+La primera vez la carga domina; la segunda es casi cero. **Ese es el efecto que hace que un
+usuario crea que tu producto está roto justo cuando vuelve a usarlo después de un rato.**
+
+Por eso el backend manda `keep_alive`: le pide a Ollama que lo deje en memoria media hora.
+Cuesta 1 GB de los 8 que tiene la máquina, y es un intercambio deliberado — memoria a cambio
+de que nadie espere.
+
+### Si quieres comparar modelos, hazlo justo
+
+Mi recomendación de `qwen2.5:1.5b` sale de que **no inventa** en conversación, no de que sea
+más rápido: en la t2.large eso no lo he medido de forma comparable. Si quieres decidirlo con
+tus propios datos, esto mide los dos igual, en caliente y solo la generación:
+
+```bash
+for m in qwen2.5:1.5b llama3.2:3b; do
+  curl -s http://localhost:11434/api/chat -d "{\"model\":\"$m\",\"stream\":false,
+    \"messages\":[{\"role\":\"user\",\"content\":\"hola\"}]}" >/dev/null
+  curl -s http://localhost:11434/api/chat -d "{\"model\":\"$m\",\"stream\":false,
+    \"messages\":[{\"role\":\"user\",\"content\":\"Explica que es una API en tres frases.\"}]}" \
+  | python3 -c "
+import sys,json; d=json.load(sys.stdin)
+print(f\"  $m  {d['eval_count']/(d['eval_duration']/1e9):.1f} tok/s\")"
+done
+```
+
+La primera llamada calienta el modelo; la segunda es la que cuenta. Sin eso estarías
+comparando tiempos de carga, no de generación — que es el error que yo cometí.
 
 ---
 
@@ -171,7 +208,12 @@ Lo primero no es hablar con el modelo: es saber si está. Reemplaza el `COMPLETA
             "arreglo": f"En la instancia:  ollama pull {MODELO}",
         })
 
-    return jsonify({"status": "ok", "modelo": MODELO, "max_tokens": MAX_TOKENS})
+    return jsonify({
+        "status": "ok",
+        "modelo": MODELO,
+        "max_tokens": MAX_TOKENS,
+        "keep_alive": KEEP_ALIVE,
+    })
 ```
 
 Tres respuestas distintas, y cada una **dice qué hacer**. Un chequeo de salud que solo
@@ -208,6 +250,7 @@ a pedir salud. Tiene que decirte `ollama serve`. Luego arráncalo otra vez.
                 "messages": [{"role": "system", "content": SISTEMA}] + mensajes,
                 "stream": False,
                 "options": {"num_predict": MAX_TOKENS},
+                "keep_alive": KEEP_ALIVE,
             },
             timeout=TIMEOUT,
         )

@@ -79,9 +79,15 @@ paso "1 · Paquetes del sistema"
 #
 # python3-venv va aparte de python3 en Ubuntu, y sin el 'python3 -m venv' falla
 # con un mensaje que sugiere instalarlo... usando el propio venv que no existe.
+#
+# python3-pip NO esta en la lista, y es deliberado: arrastra gcc, g++,
+# build-essential y unos noventa paquetes mas que aqui no se usan. El entorno
+# virtual trae su propio pip (via ensurepip, que viene con python3-venv), asi
+# que el pip del sistema sobra. Si por lo que sea faltara, el paso 2 lo detecta
+# y lo instala entonces.
 sudo apt-get update -qq
 sudo apt-get install -y -qq \
-  git python3 python3-venv python3-pip curl ca-certificates lsof
+  git python3 python3-venv curl ca-certificates lsof
 
 command -v python3 >/dev/null || morir "python3 no quedo instalado"
 ok "python $(python3 --version 2>&1 | cut -d' ' -f2)"
@@ -104,6 +110,15 @@ else
   python3 -m venv "$VENV" || morir "no se pudo crear el entorno.
         ¿Quedo instalado python3-venv?  sudo apt-get install -y python3-venv"
   ok "creado en .venv/"
+fi
+
+# Red de seguridad: si el entorno quedo sin pip --no deberia, ensurepip viene
+# con python3-venv-- se instala el del sistema y se rehace.
+if [[ ! -x "$VENV/bin/pip" ]]; then
+  aviso "el entorno quedo sin pip; instalando python3-pip y rehaciendolo"
+  sudo apt-get install -y -qq python3-pip
+  rm -rf "$VENV"
+  python3 -m venv "$VENV" || morir "no se pudo crear el entorno ni con python3-pip"
 fi
 
 "$VENV/bin/python" -m pip install -q --upgrade pip
