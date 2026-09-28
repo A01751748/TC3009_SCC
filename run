@@ -57,7 +57,24 @@ detener() {
 
 case "${1:-}" in
   start)
-    [[ -x "$PY" ]] || { mal "no encuentro el entorno en $PY. Corre:  bash setup/bootstrap.sh"; exit 1; }
+    if [[ ! -x "$PY" ]]; then
+      # Distinguir la laptop de la instancia importa: mandar a un alumno a
+      # correr bootstrap.sh en su Mac es mandarlo a una pared. La instancia es
+      # la unica Linux del curso.
+      if [[ "$(uname -s)" != "Linux" ]]; then
+        mal "esto se corre en la INSTANCIA, no en tu computadora."
+        echo
+        echo "        Tu maquina solo edita codigo: no necesita Python, ni Node,"
+        echo "        ni Ollama. Todo eso vive en la instancia."
+        echo
+        echo "        Aqui:           git add -A && git commit -m \"...\" && git push"
+        echo "        En la instancia: git pull && ./run restart"
+      else
+        mal "no encuentro el entorno en $PY"
+        echo "        Corre:  bash setup/bootstrap.sh"
+      fi
+      exit 1
+    fi
     arrancar api "$PY" "$AQUI/backend/app.py"
     if [[ -d "$AQUI/frontend/node_modules" ]]; then
       arrancar web bash -c "cd '$AQUI/frontend' && npm run dev"

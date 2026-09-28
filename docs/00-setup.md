@@ -31,16 +31,33 @@ Tres cosas que esto cambia respecto a la parte 1:
 
 ## 1. En tu computadora
 
-| Qué | Dónde |
-| --- | ----- |
-| **git** | [git-scm.com](https://git-scm.com/downloads) |
-| **VS Code** | [code.visualstudio.com](https://code.visualstudio.com/) |
-| **Cuenta de GitHub** | [github.com](https://github.com/) |
+Tres cosas, y **nada más**:
+
+| Qué | Dónde | Para qué |
+| --- | ----- | -------- |
+| **git** | [git-scm.com](https://git-scm.com/downloads) | mover tu código a GitHub |
+| **VS Code** | [code.visualstudio.com](https://code.visualstudio.com/) | escribir el código |
+| **Cuenta de GitHub** | [github.com](https://github.com/) | donde vive tu repositorio |
 
 ```bash
 git config --global user.name "Tu Nombre"
 git config --global user.email "tu-correo@tec.mx"
 ```
+
+### Lo que NO instalas en tu computadora
+
+**Python. Node. Ollama. Ninguno.**
+
+Tu máquina escribe el código; la instancia lo ejecuta. Es lo mismo de la parte 1 y aquí
+importa aún más, porque Ollama y el modelo son un gigabyte que solo tiene sentido donde corre
+el producto.
+
+Da exactamente igual si usas Windows, Mac o Linux: lo que se ejecuta corre en Ubuntu, igual
+para todos. Esa es media razón de que el curso funcione con 30 laptops distintas.
+
+> Si ya tienes Python o Node instalados, no estorban — pero no los vamos a usar. Y si intentas
+> correr `./run start` o `bash setup/bootstrap.sh` en tu computadora, los dos te van a decir
+> que ese no es su sitio, en vez de fallar con un error críptico.
 
 ### Si usas Windows: Git Bash como terminal de VS Code
 
@@ -192,6 +209,13 @@ Tu repositorio es privado. Hazlo público en **Settings → General → Change v
 
 **`./run` no se reconoce (Windows).**
 Estás en PowerShell. Paso 1, Git Bash.
+
+**`./run start` en mi computadora dice «esto se corre en la INSTANCIA».**
+Correcto, no es un error. Tu máquina no ejecuta nada: edita, hace `commit` y `push`. Lo que
+corre, corre en la instancia.
+
+**`bash setup/bootstrap.sh` en mi Mac dice lo mismo.**
+Igual. Ese script instala Ubuntu-cosas con `apt-get`; en tu Mac no tiene nada que hacer.
 
 **`./run salud` dice que Ollama no responde.**
 En la instancia: `ollama serve &`. Si acabas de reiniciarla, el servicio puede tardar.

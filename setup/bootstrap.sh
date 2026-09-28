@@ -12,6 +12,24 @@ set -euo pipefail
 AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MODELO="${OLLAMA_MODEL:-qwen2.5:1.5b}"
 
+# Esto es para la instancia (Ubuntu). En una Mac o en Git Bash fallaria en la
+# primera linea --apt-get no existe, sudo pide contraseña-- con un mensaje que
+# no explica nada. Mejor decirlo antes de tocar nada.
+if [[ "$(uname -s)" != "Linux" ]]; then
+  cat <<'FIN' >&2
+Este script es para tu INSTANCIA, no para tu computadora.
+
+Tu maquina solo edita codigo: no necesita Python, ni Node, ni Ollama.
+Instalarlos aqui no ayuda y puede confundirte despues.
+
+  En tu computadora:  git add -A && git commit -m "..." && git push
+  En la instancia:    git pull && ./run restart
+
+Si estas en la instancia y ves esto, algo raro pasa: deberia decir Linux.
+FIN
+  exit 1
+fi
+
 echo "==> Paquetes del sistema"
 sudo apt-get update -qq
 sudo apt-get install -y -qq git python3 python3-venv python3-pip curl ca-certificates lsof
