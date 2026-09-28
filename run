@@ -79,8 +79,17 @@ case "${1:-}" in
       exit 1
     fi
     arrancar api "$PY" "$AQUI/backend/app.py"
+
     if [[ -d "$AQUI/frontend/node_modules" ]]; then
-      arrancar web bash -c "cd '$AQUI/frontend' && npm run dev"
+      # nvm no es un programa, es una funcion de shell que se carga desde
+      # ~/.bashrc. Una terminal que no lo haya leido no tiene npm en el PATH, y
+      # el sintoma seria "web no arranco" sin decir por que. Se carga aqui.
+      arrancar web bash -c "
+        export NVM_DIR=\"\$HOME/.nvm\"
+        [ -s \"\$NVM_DIR/nvm.sh\" ] && . \"\$NVM_DIR/nvm.sh\"
+        cd '$AQUI/frontend' && exec npm run dev"
+    elif [[ -f "$AQUI/frontend/package.json" ]]; then
+      aviso "frontend/ esta ahi pero sin dependencias. Corre:  bash setup/bootstrap.sh"
     else
       echo "  (el frontend llega en la fase 2)"
     fi

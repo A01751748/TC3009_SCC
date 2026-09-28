@@ -437,10 +437,349 @@ personas contra la misma máquina, eso importa.
 
 ---
 
-## Fase 2 — El frontend
+## Fase 2 — El frontend (60 min)
 
-*(En construcción. Aquí el chat en React: primero la respuesta completa, después
-escribiéndose token a token.)*
+Tu backend funciona y solo lo has usado con `curl`. Eso está bien para probar y es
+inservible para enseñárselo a alguien. Ahora la parte que se ve.
+
+Son **dos** `COMPLETA` y ningún archivo que escribas de cero: el esqueleto está en
+`frontend/`.
+
+### Primero, trae el material de la fase 2
+
+Cuando clonaste el curso, `frontend/` todavía no existía. Hay que traerlo, y cómo
+depende de qué opción seguiste en el setup.
+
+**Opción A** — tienes el remoto `curso`. Compruébalo con `git remote -v`:
+
+```bash
+git fetch curso
+git merge curso/main --no-edit
+```
+
+Tu `backend/app.py` **no se pierde**. Lo que cambió del curso en ese archivo son
+comentarios de arriba del todo, lejos de tus `COMPLETA`, y git junta las dos cosas solo.
+Si alguna vez hubiera un conflicto de verdad, git te dice en qué archivo y deja las dos
+versiones marcadas: la tuya va entre `<<<<<<< HEAD` y `=======`.
+
+**Opción B** — bajaste el ZIP, así que tu repositorio no comparte historia con el mío y
+un `merge` ni siquiera arranca:
+
+```
+fatal: refusing to merge unrelated histories
+```
+
+No es un error tuyo, es git diciendo la verdad: son dos árboles distintos. Trae solo los
+archivos del curso, por ruta:
+
+```bash
+git remote add curso https://github.com/vsosahdz/TC3009-Part2-2026.git   # una sola vez
+git fetch curso
+git checkout curso/main -- frontend/ docs/ setup/ run README.md
+```
+
+`backend/` no está en esa lista, a propósito: ese archivo es tuyo. Y usa esto **ahora**,
+antes de tocar el frontend — más adelante sobrescribiría lo que hubieras escrito en
+`frontend/src/`.
+
+**Los dos casos siguen igual.** En tu computadora:
+
+```bash
+git add -A && git commit -m "material de la fase 2" && git push
+```
+
+Y en la instancia, donde ahora hace falta Node:
+
+```bash
+git pull
+bash setup/bootstrap.sh    # ya está casi todo; ahora añade Node y el frontend
+./run restart
+```
+
+```
+   frontend/
+     index.html          la página. Cuatro líneas, y una de ellas carga main.tsx
+     vite.config.ts      el servidor de desarrollo: puerto 3000, escucha fuera
+     tsconfig.json       cómo se compila TypeScript
+     package.json        las dependencias, con versiones exactas
+     src/
+       main.tsx          engancha React al <div id="root">
+       styles.css        el aspecto. Tócalo si quieres, no cambia nada de lo demás
+       api.ts            ◀── COMPLETA 4   la costura con el backend
+       App.tsx           ◀── COMPLETA 5   dónde vive la conversación
+```
+
+### Qué se instaló, y por qué eso
+
+El `bootstrap.sh` ya te dejó Node y las dependencias. Vale la pena saber qué eligió y
+por qué, porque las dos decisiones se repiten en cualquier proyecto que hagas después.
+
+**Node 24, y no la más nueva.** Node saca versión cada seis meses. Ahora mismo:
+
+```
+  v26   la más nueva. Será LTS en octubre de 2026 — todavía no lo es
+  v24   LTS ACTIVA          ← la que se instaló
+  v22   en mantenimiento: solo parches de seguridad
+  v20   fin de vida
+```
+
+«La más nueva» suena a mejor y en herramientas de build suele significar «la que
+todavía no tiene arreglado lo que te va a pasar». La LTS activa lleva meses recibiendo
+correcciones y es contra la que prueban Vite, TypeScript y todo lo demás. Una versión
+por detrás de la punta, a propósito.
+
+**Vite + React + TypeScript, y no Next.js.** Next.js trae enrutado, renderizado en el
+servidor y sus propias API routes. Aquí no se usa ninguna de las tres —tu API ya existe,
+es el Flask de la fase 1— y cada una es una capa que tendrías que entender para depurar
+un fallo. Vite hace una cosa: sirve tu código y lo recarga al guardar.
+
+**TypeScript** hace un trabajo concreto en este proyecto: el tipo `Mensaje` es el
+contrato de tu backend escrito de forma que la máquina lo revise. Si mandas un `role`
+que no existe, el error aparece mientras escribes, no cuando el modelo devuelve algo
+raro y tardas veinte minutos en saber por qué.
+
+### Antes de escribir nada
+
+**En la instancia:**
+
+```bash
+./run restart
+./run status
+```
+
+Tienen que aparecer los dos, `api` y `web`. Abre `http://TU-IP:3000` y vas a ver la
+página ya montada: la cabecera dice qué modelo hay, el campo de texto funciona. Escribe
+algo y dale a Enviar:
+
+```
+No se pudo responder.
+COMPLETA 4: falta la llamada a http://TU-IP:8080/api/chat, en src/api.ts
+```
+
+**Eso es lo correcto.** El esqueleto compila y corre; lo que falta lo dice él mismo, en
+la pantalla, con el archivo. No vas a tener que adivinar dónde estabas.
+
+La cabecera distingue **tres** estados, y conviene saber leerla porque ahorra buscar
+donde no es:
+
+| Dice | Qué pasa | Dónde mirar |
+| ---- | -------- | ----------- |
+| `modelo qwen2.5:1.5b` | todo bien | — |
+| `el backend vive, pero Ollama no contesta` | el 8080 contesta, el 11434 no | `ollama serve` |
+| `el backend no responde` | el 8080 no contesta | `./run status`, `./run logs api` |
+
+### `COMPLETA 4` — la costura
+
+Todo lo que el frontend sabe del servidor cabe en una función. Abre `src/api.ts`:
+
+```ts
+export async function enviar(messages: Mensaje[]): Promise<Respuesta> {
+  const r = await fetch(`${API}/api/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages }),
+  });
+
+  const datos = await r.json().catch(() => ({}));
+
+  if (!r.ok) {
+    // El backend dice QUE esta mal y, cuando puede, COMO arreglarlo, en dos
+    // campos separados. Los dos van a la pantalla: tirarlos y lanzar un
+    // "error 500" generico desperdicia justo el trabajo de la fase 1.
+    const que = datos.error ?? `el servidor respondio ${r.status}`;
+    throw new Error(datos.arreglo ? `${que} — ${datos.arreglo}` : que);
+  }
+  return datos as Respuesta;
+}
+```
+
+Cuatro cosas que no son de relleno:
+
+**`JSON.stringify({ messages })` manda la lista entera.** No la última pregunta: la
+conversación completa, cada vez. Es lo que comprobaste con `curl` al cerrar la fase 1 —
+el backend no recuerda nada, así que quien recuerda tiene que ser esto.
+
+**`.catch(() => ({}))`.** Si el servidor devuelve algo que no es JSON —una página de
+error de un proxy, una respuesta vacía— `r.json()` lanza. Sin ese `catch`, el usuario
+ve un `SyntaxError: Unexpected token` en vez del error de verdad.
+
+**`datos.arreglo` se pega al mensaje.** En la fase 1 separaste las dos mitades del
+error: `error` dice qué pasó y `arreglo` dice qué hacer. Si aquí solo propagas `error`,
+la pantalla dirá «no pude hablar con Ollama» y se callará justo la parte útil —
+`ollama serve`— que ya habías escrito. Es el fallo más fácil de cometer y el más caro:
+media hora de alguien buscando en los logs algo que el servidor ya sabía decirle.
+
+**La URL no está escrita a mano.** Arriba del archivo:
+
+```ts
+const API = `http://${window.location.hostname}:8080`;
+```
+
+La IP pública de tu instancia cambia cada vez que el laboratorio la reinicia. Si aquí
+hubiera una IP literal, la aplicación dejaría de funcionar en cada sesión — y el
+síntoma sería un error de red que no se parece en nada a la causa. El puerto sí es
+distinto, y por eso el navegador aplica CORS: 3000 y 8080 son dos orígenes.
+
+### `COMPLETA 5` — dónde vive la conversación
+
+Abre `src/App.tsx`. Arriba del componente están las cinco piezas de estado, ya escritas:
+
+```tsx
+  const [mensajes, setMensajes] = useState<Mensaje[]>([]);
+  const [texto, setTexto] = useState("");
+  const [esperando, setEsperando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [estado, setEstado] = useState<Salud | null>(null);
+```
+
+`mensajes` es **la memoria del chat**. No está en el modelo, que no recuerda nada entre
+peticiones, ni en tu servidor, que decidiste que no guardara nada. Está en esta línea,
+en el navegador de quien lo usa.
+
+Lo que falta es la función que la mueve:
+
+```tsx
+  async function mandar(e: React.FormEvent) {
+    e.preventDefault(); // sin esto el navegador recarga la pagina entera
+    const pregunta = texto.trim();
+    if (!pregunta || esperando) return; // sin envios duplicados
+
+    // La pregunta aparece YA, antes de que el modelo conteste. En una maquina
+    // que tarda medio minuto, ver tu propio mensaje es la diferencia entre
+    // "esta pensando" y "se rompio".
+    const conPregunta: Mensaje[] = [...mensajes, { role: "user", content: pregunta }];
+    setMensajes(conPregunta);
+    setTexto("");
+    setError(null);
+    setEsperando(true);
+
+    try {
+      const r = await enviar(conPregunta);
+      setMensajes([...conPregunta, { role: "assistant", content: r.respuesta }]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setEsperando(false);
+    }
+  }
+```
+
+Cuatro decisiones, y ninguna es de estilo.
+
+**`conPregunta` es una variable, no `mensajes` otra vez.** `setMensajes` no cambia
+`mensajes` al instante: React vuelve a dibujar y en la pasada *siguiente* la variable
+vale otra cosa. Si en el `try` escribieras `[...mensajes, respuesta]`, estarías usando
+la lista de antes —sin la pregunta— y la perderías. Este es el error más común de React
+y no da ningún aviso: simplemente desaparecen mensajes.
+
+**Pintar antes de llamar.** El `setMensajes(conPregunta)` va *antes* del `await`. A seis
+tokens por segundo, media respuesta es medio minuto; una pantalla que no se mueve en ese
+rato no parece lenta, parece rota.
+
+**`finally`.** Si `enviar()` lanza y `setEsperando(false)` estuviera solo en el camino
+bueno, el botón se quedaría deshabilitado para siempre y habría que recargar la página.
+Un error recuperable convertido en uno fatal, por dónde pusiste una línea.
+
+**El error se guarda, no se esconde.** `err.message` es el texto que escribiste en la
+fase 1 —`ollama serve`, `ollama pull ...`— y llega hasta la pantalla sin que nadie lo
+traduzca. Todo ese trabajo del backend valía para esto.
+
+### Lo que ya está escrito, y conviene leer
+
+El resto de `App.tsx` es JSX y se lee sin explicación. Dos detalles que sí vale la pena
+mirar, porque responden a preguntas que van a salir:
+
+```tsx
+        {mensajes.map((m, i) => (
+          <div key={i} className={`mensaje ${m.role}`}>
+```
+
+El `role` que viene del backend se usa **como clase de CSS**. Por eso los mensajes de
+quien pregunta salen a la derecha en azul y los del modelo a la izquierda: no hay un
+`if` decidiéndolo, lo decide el dato. Cambiar el aspecto es tocar `styles.css` y nada
+más.
+
+```tsx
+        <button type="submit" disabled={esperando || !texto.trim()}>
+```
+
+El botón se apaga solo mientras se espera. El `if (!pregunta || esperando) return` de
+`mandar` parece repetirlo, y no: el botón evita el clic, la guarda evita el Enter y
+cualquier otra forma de llegar ahí. Lo que protege el dato se comprueba donde está el
+dato.
+
+### Pruébalo
+
+**En tu computadora:**
+
+```bash
+git add -A && git commit -m "fase 2: el chat" && git push
+```
+
+**En la instancia:**
+
+```bash
+git pull && ./run restart
+```
+
+Abre `http://TU-IP:3000` y escribe **dos** mensajes seguidos:
+
+```
+   [tú]      Me llamo Victor. Que es Flask, en una frase?
+   [modelo]  Flask es un framework de Python ligero y rápido para desarrollo web.
+   [tú]      Como me llamo?
+   [modelo]  Tu nombre es Victor.
+```
+
+La segunda respuesta es la que importa. **Tu backend no recuerda nada** y aun así el
+chat recuerda, porque la lista viaja entera en cada petición.
+
+### Lo que hay que ver antes de cerrar la fase
+
+**Míralo tú mismo.** En el navegador, `F12` → pestaña **Network** → manda un mensaje →
+clic en `chat` → **Payload**. Ahí está la lista completa que salió de tu máquina:
+
+```json
+{"messages": [
+  {"role": "user", "content": "Me llamo Victor. Que es Flask, en una frase?"},
+  {"role": "assistant", "content": "Flask es un framework de Python..."},
+  {"role": "user", "content": "Como me llamo?"}
+]}
+```
+
+Cada mensaje nuevo hace la petición **más grande**. Con una API de pago eso se cobra, y
+es el motivo de que los productos reales acaben recortando o resumiendo lo viejo. Hoy no
+hace falta; saber que el problema existe, sí.
+
+**Que el error del backend llega a la pantalla.** En la instancia:
+
+```bash
+sudo systemctl stop ollama
+```
+
+Manda un mensaje. En la pantalla, no en los logs:
+
+```
+No se pudo responder.
+no pude hablar con Ollama en http://localhost:11434 — En la instancia:  ollama serve
+```
+
+Ese texto lo escribiste tú, en Python, en la fase 1. Atravesó un `jsonify`, un `fetch`,
+un `throw` y un `useState` sin que nadie lo cambiara, y las dos mitades llegaron: qué
+pasó y qué hacer. **Un error solo sirve si llega hasta quien puede arreglarlo.**
+
+Fíjate también en la cabecera: dice *«el backend vive, pero Ollama no contesta»*, no
+«el backend no responde». Son dos averías distintas y el producto sabe cuál es. Vuelve
+a levantarlo:
+
+```bash
+sudo systemctl start ollama
+```
+
+**Y que el backend sigue sin memoria.** Recarga la página con `F5`. La conversación
+desaparece: vivía en `useState`, en el navegador. Es la misma propiedad de la fase 1
+vista desde el otro lado — y la razón de que puedas reiniciar el servidor a media clase
+sin romperle la sesión a nadie.
 
 ---
 
@@ -453,7 +792,8 @@ git pull            # ¿de verdad llegó lo que escribiste?
 ./run status        # ¿vive el backend? ¿vive Ollama?
 ./run salud         # ¿está mi modelo?
 ./run modelo        # ¿qué modelos hay instalados?
-./run logs api      # el error completo
+./run logs api      # el error completo del backend
+./run logs web      # el error completo del frontend
 ```
 
 | Síntoma | Qué pasa |
@@ -463,6 +803,14 @@ git pull            # ¿de verdad llegó lo que escribiste?
 | `"arreglo": "ollama serve"` | Ollama no está corriendo |
 | `"arreglo": "ollama pull ..."` | El modelo no está descargado |
 | Tarda muchísimo | Normal. Baja `OLLAMA_MAX_TOKENS` o usa un modelo más chico |
+| `COMPLETA 4` en la pantalla | El `COMPLETA 4` sigue vacío |
+| `COMPLETA 5` en la pantalla | El `COMPLETA 5` sigue vacío |
+| La cabecera dice «el backend no responde» | El 3000 vive, el 8080 no. `./run logs api` |
+| `Failed to fetch` en la consola del navegador | El backend no contesta, o el puerto 8080 no está abierto en el *security group* |
+| Los mensajes desaparecen al responder | Leíste `mensajes` después de `setMensajes`. Es el `conPregunta` del `COMPLETA 5` |
+| El botón se quedó apagado | El `setEsperando(false)` no está en un `finally` |
+| `npm: command not found` | La terminal no cargó nvm. Ábrela de nuevo, o `source ~/.bashrc` |
+| `web` no arranca | `bash setup/bootstrap.sh` otra vez: falta el `npm ci` |
 
 El modelo, el tope y el timeout salen de variables de entorno, así que probar otro es una
 línea y no tocar código:

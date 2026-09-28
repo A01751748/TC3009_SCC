@@ -28,7 +28,8 @@ Todo eso está en **[docs/00-setup.md](docs/00-setup.md)** — quince minutos, u
 |---|---|
 | **[docs/guia.md](docs/guia.md)** | La práctica: un producto con un modelo de lenguaje propio |
 | `backend/` | Flask. Tres `COMPLETA` que llenas tú |
-| `setup/bootstrap.sh` | Deja la instancia lista: Python, Ollama y el modelo |
+| `frontend/` | React + TypeScript con Vite. Dos `COMPLETA` más |
+| `setup/bootstrap.sh` | Deja la instancia lista: Python, Node, Ollama y el modelo |
 | `run` | `start` · `stop` · `status` · `logs` · `salud` · `modelo` |
 
 **El modelo por defecto es `qwen2.5:1.5b`**, y se cambia en una línea de `backend/app.py`:

@@ -4,13 +4,14 @@
 #
 #   bash setup/bootstrap.sh
 #
-# Una instancia recien creada no trae nada: ni Python, ni pip, ni Ollama. Este
-# script instala las cuatro capas y COMPRUEBA cada una antes de seguir:
+# Una instancia recien creada no trae nada: ni Python, ni Node, ni Ollama. Este
+# script instala las cinco capas y COMPRUEBA cada una antes de seguir:
 #
-#   1. paquetes del sistema   python3, venv, pip, git, curl, lsof
+#   1. paquetes del sistema   python3, venv, git, curl, lsof
 #   2. entorno virtual        .venv/ dentro del proyecto
-#   3. dependencias           Flask, CORS, requests
-#   4. Ollama y el modelo     el servidor y ~1 GB de pesos
+#   3. dependencias Python    Flask, CORS, requests
+#   4. Node y el frontend     Node 24 (LTS) via nvm, y npm ci
+#   5. Ollama y el modelo     el servidor y ~1 GB de pesos
 #
 # Se puede correr las veces que haga falta: comprueba antes de instalar, y lo
 # que ya este no se vuelve a bajar.
@@ -138,7 +139,85 @@ PY
 
 
 # ---------------------------------------------------------------------------
-paso "4 · Ollama"
+paso "4 · Node para el frontend"
+# ---------------------------------------------------------------------------
+#
+# QUE VERSION, Y POR QUE ESA.
+#
+# Node publica una version nueva cada seis meses. Las pares se vuelven LTS
+# --soporte largo-- y las impares mueren en medio año. En cualquier momento
+# hay cuatro vivas:
+#
+#   v26   la mas nueva. Sera LTS en octubre de 2026; hoy todavia no lo es
+#   v24   LTS ACTIVA. Es la que se instala aqui
+#   v22   en mantenimiento: solo parches de seguridad
+#   v20   fin de vida
+#
+# Se instala la 24 y no la 26 a proposito. "La mas nueva" suena a mejor y en
+# herramientas de build suele significar "la que todavia no tiene arreglado lo
+# que te va a pasar". La LTS activa lleva meses recibiendo correcciones y es
+# contra la que prueban Vite, TypeScript y todo lo demas.
+#
+# Y se instala con nvm, no con apt: el Node de los repositorios de Ubuntu suele
+# ir una o dos versiones por detras, y ademas nvm no necesita sudo. Queda todo
+# bajo ~/.nvm, que es tuyo.
+NODE_MAYOR=24
+NVM_VER="v0.40.8"
+export NVM_DIR="$HOME/.nvm"
+
+if [[ ! -s "$NVM_DIR/nvm.sh" ]]; then
+  curl -fsSL "https://raw.githubusercontent.com/nvm-sh/nvm/$NVM_VER/install.sh" | bash >/dev/null 2>&1 \
+    || morir "no se pudo instalar nvm. ¿Hay red?  curl -I https://raw.githubusercontent.com"
+fi
+# nvm es una funcion de shell, no un programa: hay que cargarla en esta sesion.
+# Por eso 'command -v nvm' no encontraria nada aunque este instalado.
+# shellcheck disable=SC1091
+. "$NVM_DIR/nvm.sh"
+
+if nvm ls "$NODE_MAYOR" >/dev/null 2>&1; then
+  ok "Node $NODE_MAYOR ya estaba"
+else
+  nvm install "$NODE_MAYOR" >/dev/null 2>&1 || morir "no se pudo instalar Node $NODE_MAYOR"
+  ok "Node $NODE_MAYOR instalado"
+fi
+nvm alias default "$NODE_MAYOR" >/dev/null 2>&1
+nvm use default >/dev/null 2>&1
+
+command -v node >/dev/null || morir "node no quedo disponible"
+ok "node $(node --version) · npm $(npm --version)"
+
+# Una terminal NUEVA no carga nvm sola a menos que este en el perfil. El
+# instalador lo añade a ~/.bashrc, pero si el alumno usa otra shell o el
+# archivo no existia, mejor comprobarlo que descubrirlo cuando 'npm' no exista.
+if ! grep -q "NVM_DIR" "$HOME/.bashrc" 2>/dev/null; then
+  cat >> "$HOME/.bashrc" <<'FIN'
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+FIN
+  aviso "añadi nvm a ~/.bashrc; en terminales nuevas ya estara"
+fi
+
+# Las dependencias del frontend. 'npm ci' y no 'npm install' porque instala
+# EXACTAMENTE las versiones del package-lock.json: las mismas que probe yo y
+# las mismas en las treinta instancias del grupo. 'install' puede subir una
+# version menor por su cuenta, y entonces un fallo le pasa a una persona y a
+# nadie mas -- que es la clase de fallo peor.
+if [[ -f "$AQUI/frontend/package.json" ]]; then
+  if [[ -d "$AQUI/frontend/node_modules" ]]; then
+    ok "las dependencias del frontend ya estaban"
+  else
+    echo "    instalando las dependencias del frontend"
+    ( cd "$AQUI/frontend" && npm ci --silent ) \
+      || morir "npm ci fallo en frontend/. Mira el error de arriba."
+    ok "frontend listo"
+  fi
+else
+  aviso "todavia no hay frontend/ (llega en la fase 2)"
+fi
+
+
+# ---------------------------------------------------------------------------
+paso "5 · Ollama"
 # ---------------------------------------------------------------------------
 if command -v ollama >/dev/null 2>&1; then
   ok "ya estaba instalado"
@@ -164,7 +243,7 @@ fi
 
 
 # ---------------------------------------------------------------------------
-paso "5 · El modelo"
+paso "6 · El modelo"
 # ---------------------------------------------------------------------------
 if curl -s --max-time 5 http://localhost:11434/api/tags | grep -q "\"$MODELO\""; then
   ok "$MODELO ya estaba descargado"
@@ -182,6 +261,12 @@ fallos=0
 [[ -x "$VENV/bin/python" ]] && ok "entorno virtual" || { aviso "falta .venv"; fallos=1; }
 "$VENV/bin/python" -c "import flask, requests" 2>/dev/null \
   && ok "dependencias" || { aviso "faltan dependencias"; fallos=1; }
+command -v node >/dev/null 2>&1 \
+  && ok "node $(node --version)" || { aviso "falta Node"; fallos=1; }
+if [[ -f "$AQUI/frontend/package.json" ]]; then
+  [[ -d "$AQUI/frontend/node_modules" ]] \
+    && ok "dependencias del frontend" || { aviso "falta npm ci en frontend/"; fallos=1; }
+fi
 curl -s --max-time 3 http://localhost:11434/api/tags >/dev/null 2>&1 \
   && ok "Ollama responde" || { aviso "Ollama no responde"; fallos=1; }
 curl -s --max-time 5 http://localhost:11434/api/tags | grep -q "\"$MODELO\"" \
