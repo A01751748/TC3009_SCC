@@ -26,6 +26,7 @@ import requests
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
+
 app = Flask(__name__)
 
 # El frontend vive en el puerto 3000 y esto en el 8080: dos origenes, asi que
@@ -180,6 +181,7 @@ def chat():
     #
     # Pasa timeout=TIMEOUT. Sin el, una peticion colgada ocupa un worker para
     # siempre y el siguiente alumno se queda esperando.
+    
     try:
         r = requests.post(
             f"{OLLAMA}/api/chat",
@@ -220,8 +222,6 @@ def chat():
         "modelo": MODELO,
         "tokens": datos.get("eval_count", 0),
     })
-
-
 
 if __name__ == "__main__":
     print(f"Ollama en {OLLAMA} · modelo {MODELO} · tope {MAX_TOKENS} tokens", flush=True)
