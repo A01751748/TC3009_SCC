@@ -108,7 +108,7 @@ def chat():
         return jsonify({"error": 'se esperaba {"mensaje": "..."} y no llego'}), 400
 
     try:
-        if conversacion is None:
+        if conversacion_id is None:
             conversacion_id = db.crear_conversacion(texto, MODELO)
         elif not db.existe(conversacion_id):
             return jsonify({"error": f"no existe la conversacion {conversacion_id}"}), 404
