@@ -108,6 +108,12 @@ def chat():
         return jsonify({"error": 'se esperaba {"mensaje": "..."} y no llego'}), 400
 
     try:
+        if conversacion is None:
+            conversacion_id = db.crear_conversacion(texto, MODELO)
+        elif not db.existe(conversacion_id):
+            return jsonify({"error": f"no existe la conversacion {conversacion_id}"}), 404
+        historial = db.leer_mensajes(conversacion_id)
+        db.guardar_mensaje(conversacion_id, "user", texto)
         # COMPLETA 3 — engancha la base con el modelo.
         #
         # Cuatro pasos, y el ORDEN importa:
@@ -129,9 +135,6 @@ def chat():
         #   4. guarda la pregunta con db.guardar_mensaje(id, "user", texto)
         #
         # Deja el historial en una variable llamada 'historial'.
-        raise NotImplementedError(
-            "COMPLETA 3: falta enganchar la base en backend/app.py"
-        )
     except NotImplementedError:
         raise
     except Exception as e:  # noqa: BLE001
